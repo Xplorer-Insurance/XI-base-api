@@ -13,6 +13,6 @@ export class Image {
   @ManyToOne(() => User, user => user.images)
   user: User;
 
-  @Column({ type: 'jsonb' })
+  @Column({ type: 'jsonb', nullable: true, default: {} })
   metadata: any;
 }
