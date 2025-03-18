@@ -21,8 +21,15 @@ export class UsersService {
 
   async createMultiple(createUserDtos: CreateUserDto[]) {
     const createdUsers = [];
-  
+
     for (const userDto of createUserDtos) {
+      if (!userDto.email) { 
+        console.log(`El usuario no tiene email, creando uno nuevo sin verificar duplicados.`);
+        const savedUser = await this.create(userDto);
+        createdUsers.push(savedUser);
+        continue;
+      }
+
       const existingUser = await this.usersRepository.findOne({
         where: { email: userDto.email }, // Usa email como identificador único
         relations: ['profile', 'images'],

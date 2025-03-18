@@ -119,37 +119,97 @@ export class ScraperService {
   }
   
   // ✅ Facebook Scraper
+  // private async scrapeFacebook(url: string) {
+  //   console.log(`Scraping Facebook: ${url}`);
+  
+  //   const browser = await puppeteer.launch({ 
+  //     headless: true, 
+  //     args: ['--no-sandbox', '--disable-setuid-sandbox'] 
+  //   });
+  
+  //   const page = await browser.newPage();
+  //   await page.goto(url, { waitUntil: 'networkidle2' });
+  //   await page.setUserAgent(
+  //     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36'
+  //   );
+  //   await page.goto(url, { waitUntil: 'domcontentloaded' });
+  //   await page.waitForSelector('meta', { timeout: 15000 });
+  //   try {
+  //     await page.waitForSelector('meta[property="og:title"]', { timeout: 10000 });
+  //   } catch (error) {
+  //     console.warn('Meta tag og:title no encontrado, intentando con document.title...');
+  //   }
+  //   // await page.waitForSelector('meta[property="og:title"]');
+  
+  //   const profileData = await page.evaluate(() => {
+  //     const getMetaContent = (property: string) => 
+  //       document.querySelector(`meta[property="${property}"]`)?.getAttribute('content') || 'No encontrado';
+  
+  //     return {
+  //       platform: 'Facebook',
+  //       username: getMetaContent('og:title'),
+  //       profileImage: getMetaContent('og:image'),
+  //       bio: 'No disponible en Facebook',
+  //       email: 'No disponible',
+  //       images: Array.from(document.querySelectorAll('img'))
+  //                   .map(img => (img as HTMLImageElement).src)
+  //                   .slice(0, 10)  
+  //     };
+  //   });
+  
+  //   await browser.close();
+  //   return profileData;
+  // }
+
+  // ✅ Facebook Scraper
   private async scrapeFacebook(url: string) {
     console.log(`Scraping Facebook: ${url}`);
-  
-    const browser = await puppeteer.launch({ 
-      headless: true, 
-      args: ['--no-sandbox', '--disable-setuid-sandbox'] 
+
+    const browser = await puppeteer.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
     });
-  
+
     const page = await browser.newPage();
-    await page.goto(url, { waitUntil: 'networkidle2' });
-  
-    await page.waitForSelector('meta[property="og:title"]');
-  
-    const profileData = await page.evaluate(() => {
-      const getMetaContent = (property: string) => 
-        document.querySelector(`meta[property="${property}"]`)?.getAttribute('content') || 'No encontrado';
-  
-      return {
-        platform: 'Facebook',
-        username: getMetaContent('og:title'),
-        profileImage: getMetaContent('og:image'),
-        bio: 'No disponible en Facebook',
-        email: 'No disponible',
-        images: Array.from(document.querySelectorAll('img'))
-                    .map(img => (img as HTMLImageElement).src)
-                    .slice(0, 10)  
-      };
-    });
-  
+    
+    // 🔹 Agregar User-Agent para evitar bloqueos
+    await page.setUserAgent(
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36'
+    );
+
+    // 🔹 Intentar cargar bien la página
+    await page.goto(url, { waitUntil: 'domcontentloaded' });
+
+    let username = 'No encontrado';
+    let profileImage = 'No encontrado';
+
+    try {
+      await page.waitForSelector('meta[property="og:title"]', { timeout: 10000 });
+      username = await page.evaluate(() => 
+        document.querySelector('meta[property="og:title"]')?.getAttribute('content') || 'No encontrado'
+      );
+      profileImage = await page.evaluate(() => 
+        document.querySelector('meta[property="og:image"]')?.getAttribute('content') || 'No encontrado'
+      );
+    } catch (error) {
+      console.warn('Meta tags no encontradas, usando document.title...');
+      username = await page.evaluate(() => document.title || 'No encontrado');
+    }
+
+    const images = await page.evaluate(() => 
+      Array.from(document.querySelectorAll('img')).map(img => (img as HTMLImageElement).src).slice(0, 10)
+    );
+
     await browser.close();
-    return profileData;
+    
+    return {
+      platform: 'Facebook',
+      username,
+      profileImage,
+      bio: 'No disponible en Facebook',
+      email: 'No disponible',
+      images
+    };
   }
   
   // Scrape twitter, No funciona
