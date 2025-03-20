@@ -9,6 +9,7 @@ import { v2 as cloudinary } from 'cloudinary';
 import { promisify } from 'util';
 import { UsersService } from '../users/users.service';
 import { CreateUserDto } from '../users/dtos/create-user.dto';
+const { chromium } = require("playwright");
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -165,22 +166,66 @@ export class ScraperService {
   private async scrapeFacebook(url: string) {
     console.log(`Scraping Facebook: ${url}`);
 
-    const browser = await puppeteer.launch({
-      headless: true,
-      // args: ['--no-sandbox', '--disable-setuid-sandbox']
-      args: [
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-gpu",
-        "--disable-dev-shm-usage",
-        "--single-process"
-      ],
-      executablePath: process.env.CHROMIUM_PATH || "/usr/bin/chromium-browser", // Usa Chromium instalado en el sistema
-    });
+    // const browser = await puppeteer.launch({
+    //   headless: true,
+    //   // args: ['--no-sandbox', '--disable-setuid-sandbox']
+    //   args: [
+    //     "--no-sandbox",
+    //     "--disable-setuid-sandbox",
+    //     "--disable-gpu",
+    //     "--disable-dev-shm-usage",
+    //     "--single-process"
+    //   ],
+    //   executablePath: process.env.CHROMIUM_PATH || "/usr/bin/chromium-browser", // Usa Chromium instalado en el sistema
+    // });
+
+      const browser = await chromium.launch({
+          args: ["--no-sandbox"],
+          headless: true
+      });
+  
+      const page = await browser.newPage();
+      // await page.goto(url);
+  
+      const content = await page.content();
+      console.log(content);
+
+      await page.goto(url, { waitUntil: 'domcontentloaded' });
+
+      let username = 'No encontrado';
+      let profileImage = 'No encontrado';
+  
+      try {
+        await page.waitForSelector('meta[property="og:title"]', { timeout: 10000 });
+        username = await page.evaluate(() => 
+          document.querySelector('meta[property="og:title"]')?.getAttribute('content') || 'No encontrado'
+        );
+        profileImage = await page.evaluate(() => 
+          document.querySelector('meta[property="og:image"]')?.getAttribute('content') || 'No encontrado'
+        );
+      } catch (error) {
+        console.warn('Meta tags no encontradas, usando document.title...');
+        username = await page.evaluate(() => document.title || 'No encontrado');
+      }
+  
+      const images = await page.evaluate(() => 
+        Array.from(document.querySelectorAll('img')).map(img => (img as HTMLImageElement).src).slice(0, 10)
+      );
+  
+      await browser.close();
+
+      return {
+        platform: 'Facebook',
+        username,
+        profileImage,
+        bio: 'No disponible en Facebook',
+        email: 'No disponible',
+        images
+      };
 
     
 
-    const page = await browser.newPage();
+    // const page = await browser.newPage();
     
     // 🔹 Agregar User-Agent para evitar bloqueos
     // await page.setUserAgent(
@@ -188,38 +233,38 @@ export class ScraperService {
     // );
 
     // 🔹 Intentar cargar bien la página
-    await page.goto(url, { waitUntil: 'domcontentloaded' });
+    // await page.goto(url, { waitUntil: 'domcontentloaded' });
 
-    let username = 'No encontrado';
-    let profileImage = 'No encontrado';
+    // let username = 'No encontrado';
+    // let profileImage = 'No encontrado';
 
-    try {
-      await page.waitForSelector('meta[property="og:title"]', { timeout: 10000 });
-      username = await page.evaluate(() => 
-        document.querySelector('meta[property="og:title"]')?.getAttribute('content') || 'No encontrado'
-      );
-      profileImage = await page.evaluate(() => 
-        document.querySelector('meta[property="og:image"]')?.getAttribute('content') || 'No encontrado'
-      );
-    } catch (error) {
-      console.warn('Meta tags no encontradas, usando document.title...');
-      username = await page.evaluate(() => document.title || 'No encontrado');
-    }
+    // try {
+    //   await page.waitForSelector('meta[property="og:title"]', { timeout: 10000 });
+    //   username = await page.evaluate(() => 
+    //     document.querySelector('meta[property="og:title"]')?.getAttribute('content') || 'No encontrado'
+    //   );
+    //   profileImage = await page.evaluate(() => 
+    //     document.querySelector('meta[property="og:image"]')?.getAttribute('content') || 'No encontrado'
+    //   );
+    // } catch (error) {
+    //   console.warn('Meta tags no encontradas, usando document.title...');
+    //   username = await page.evaluate(() => document.title || 'No encontrado');
+    // }
 
-    const images = await page.evaluate(() => 
-      Array.from(document.querySelectorAll('img')).map(img => (img as HTMLImageElement).src).slice(0, 10)
-    );
+    // const images = await page.evaluate(() => 
+    //   Array.from(document.querySelectorAll('img')).map(img => (img as HTMLImageElement).src).slice(0, 10)
+    // );
 
-    await browser.close();
+    // await browser.close();
     
-    return {
-      platform: 'Facebook',
-      username,
-      profileImage,
-      bio: 'No disponible en Facebook',
-      email: 'No disponible',
-      images
-    };
+    // return {
+    //   platform: 'Facebook',
+    //   username,
+    //   profileImage,
+    //   bio: 'No disponible en Facebook',
+    //   email: 'No disponible',
+    //   images
+    // };
   }
   
   // Scrape twitter, No funciona
