@@ -167,8 +167,18 @@ export class ScraperService {
 
     const browser = await puppeteer.launch({
       headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
+      // args: ['--no-sandbox', '--disable-setuid-sandbox']
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-gpu",
+        "--disable-dev-shm-usage",
+        "--single-process"
+      ],
+      executablePath: process.env.CHROMIUM_PATH || "/usr/bin/chromium-browser", // Usa Chromium instalado en el sistema
     });
+
+    
 
     const page = await browser.newPage();
     
